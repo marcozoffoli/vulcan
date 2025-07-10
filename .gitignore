@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*$py.class
+
+# Virtual environments
+.venv
+
+# macOS metadata
+.DS_Store
+EOF
+
+# VSCode workspace
+.vscode/
