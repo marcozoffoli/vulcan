@@ -8,6 +8,7 @@ from scipy.stats import norm
 from scipy.cluster.hierarchy import linkage, leaves_list
 from statsmodels.tsa.stattools import grangercausalitytests
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from sklearn.linear_model import LinearRegression
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 from matplotlib.figure import Figure
@@ -567,3 +568,63 @@ def plot_rolling_moments(
         ax.set_xlabel('Index')
     fig.suptitle('Rolling Moments', fontsize=16, weight='bold')
     fig.tight_layout(rect=(0, 0.03, 1, 0.95))
+
+
+# ===================================================================== #
+# ST Decomposition
+# ===================================================================== #
+
+def harmonic_decomposition(
+    ts: pd.Series,
+    period: int,
+    harmonics: int,
+) -> pd.DataFrame:
+    """
+    Decompose a time series into trend, harmonic seasonality, and residual.
+    :param ts : pd.Series
+        Input series; must have a DateTimeIndex or PeriodIndex.
+    :param period : int
+        Length of one seasonal cycle (e.g. 365 for daily annual).
+    :param harmonics : int
+        Number of sine–cosine pairs to include (order of expansion).
+    :return: pd.DataFrame
+        DataFrame with columns ['original', 'trend', 'seasonal', 'residual']
+    """
+    # Ensure Series and monotonic index
+    ts = ts.sort_index()
+    if not isinstance(ts.index, (pd.DatetimeIndex, pd.PeriodIndex)):
+        raise ValueError("`ts` must have a DateTimeIndex or PeriodIndex")
+    # Numeric time vector 0..N-1
+    N = len(ts)
+    t = np.arange(N)
+    # Build design matrix: intercept + linear trend
+    X_parts = [np.ones(N), t]
+    # Add K harmonics: sin(2πkt/p) and cos(2πkt/p)
+    for k in range(1, harmonics + 1):
+        angle = 2 * np.pi * k * t / period
+        X_parts.append(np.sin(angle))
+        X_parts.append(np.cos(angle))
+    X = np.column_stack(X_parts)
+    # Fit by OLS (no intercept, since we provided one)
+    model = LinearRegression(fit_intercept=False)
+    model.fit(np.asarray(X), ts.to_numpy())
+    coef = model.coef_
+    # Extract trend: β0 + β1·t
+    intercept, slope = coef[0], coef[1]
+    trend = intercept + slope * t
+    # Extract seasonal: remaining coefficients × harmonics features
+    seasonal_coefs = coef[2:]
+    seasonal = X[:, 2:] @ seasonal_coefs
+    # Residual = original − (trend + seasonal)
+    residual = ts.values - (trend + seasonal)
+    # Pack into DataFrame
+    df = pd.DataFrame(
+        {
+            "original": ts.values,
+            "trend": trend,
+            "seasonal": seasonal,
+            "residual": residual,
+        },
+        index=ts.index,
+    )
+    return df
