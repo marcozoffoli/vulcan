@@ -1,4 +1,6 @@
-"""Visualization tools"""
+"""
+Visualization tools
+"""
 
 from typing import Literal, Optional, Tuple
 from matplotlib.figure import Figure

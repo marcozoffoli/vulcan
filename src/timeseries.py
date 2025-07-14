@@ -1,6 +1,8 @@
-"""Time series analysis tools"""
+"""
+Time series analysis tools
+"""
 
-from typing import Literal, Optional, Tuple, Sequence
+from typing import Literal, Optional, Tuple, Sequence, Iterable, Dict, List
 from scipy import signal
 from scipy.stats import norm
 from scipy.cluster.hierarchy import linkage, leaves_list
@@ -491,99 +493,77 @@ def plot_rolling_moments(
     series: pd.Series,
     periods: Sequence[int] = (20,),
     ewm: bool = False,
-    colors: Optional[Sequence[str]] = None,
-    linestyles: Optional[Sequence[str]] = None,
     figsize: Tuple[int, int] = (12, 10)
-) -> Tuple[Figure, Axes]:
+) -> None:
     """
-    Plot rolling moments (mean, variance, skew, kurtosis) in a 2×2 grid,
-    using distinct colors per moment and shading or styled lines per window.
+    Plot rolling moments (mean, variance, skewness, kurtosis) in a 2×2 grid.
     :param series: pd.Series
         Time series to analyze.
-    :param periods: Tuple[int]
-        1–3 period sizes: rolling window normally, coms if ewm is set to True
+    :param periods: Sequence[int]
+        1–3 window sizes (rolling) or COM values (if ewm is True).
     :param ewm: bool
-        If True, use EWMA instead of simple rolling.
-    :param colors: Sequence[str]
-        Sequence of 4 colors, one for each moment.
-        Defaults to Matplotlib cycle.
-    :param linestyles: Sequence[str]
-        Sequence of styles for each window. Defaults to ['-', '--', ':'].
-    :param figsize: (int, int)
+        If True, use exponentially weighted moments.
+    :param colors: Sequence[str], optional
+        Colors for each window. Defaults to matplotlib cycle.
+    :param figsize: Tuple[int, int]
         Figure size as (width, height).
-    :returns: (Figure, array of 4 Axes).
-    :raises ValueError: If wrong number of windows or colors.
+    :returns: Tuple[Figure, Axes]
+        Figure and flattened array of Axes.
+    :raises ValueError:
+        If number of periods is not between 1 and 3 or colors mismatch.
     """
     # Validate inputs
     if not 1 <= len(periods) <= 3:
-        raise ValueError("Choose between 1 and 3 window sizes")
-    if colors is None:
-        default_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-        colors = default_cycle[:4]
-    assert colors is not None, "Colors must be set by now"
-    if len(colors) != 4:
-        raise ValueError("Provide exactly 4 colors (mean, var, skew, kurtosis).")
-    if linestyles is None:
-        linestyles = ["-", "--", ":"]
-    if len(linestyles) < len(periods):
-        raise ValueError("Not enough linestyles for each window.")
+        raise ValueError('Choose between 1 and 3 window sizes')
+    # Setting colors
+    default_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    colors = default_cycle[:len(periods)]
     # Prepare data: compute each moment per window
-    metrics = ["Mean", "Variance", "Skewness", "Kurtosis"]
-    moments = {p: [] for p in periods}
+    metrics = ['Mean', 'Variance', 'Skewness', 'Kurtosis']
+    moments: Dict[int, List[pd.Series]] = {}
+    # Computing moments
     for p in periods:
         if ewm:
             m0 = series.ewm(com=p).mean()
             m1 = series.ewm(com=p).var()
-            # Higher moments
-            E2  = series.pow(2).ewm(com=p).mean()    # E[X^2]
-            E3  = series.pow(3).ewm(com=p).mean()    # E[X^3]
-            E4  = series.pow(4).ewm(com=p).mean()    # E[X^4]
-            # Skew
-            cm3 = E3 - 3*m0*E2 + 2*m0.pow(3)
-            m2  = cm3.div(m1.pow(1.5))
-            # Kurtosis
-            cm4 = E4 - 4*m0*E3 + 6*m0.pow(2)*E2 - 3*m0.pow(4)
-            m3  = cm4.div(m1.pow(2))
+            E2 = series.pow(2).ewm(com=p).mean()
+            E3 = series.pow(3).ewm(com=p).mean()
+            E4 = series.pow(4).ewm(com=p).mean()
+            cm3 = E3 - 3 * m0 * E2 + 2 * m0.pow(3)
+            m2 = cm3.div(m1.pow(1.5))
+            cm4 = (E4 - 4 * m0 * E3 + 6 * m0.pow(2) * E2
+                   - 3 * m0.pow(4))
+            m3 = cm4.div(m1.pow(2))
         else:
             m0 = series.rolling(p).mean()
             m1 = series.rolling(p).var()
             m2 = series.rolling(p).skew()
             m3 = series.rolling(p).kurt()
         moments[p] = [m0, m1, m2, m3]
-    # Build 2x2 subplots
+    # Build 2×2 subplots
     fig, axs = plt.subplots(2, 2, figsize=figsize, sharex=True)
     axs = axs.flatten()
     for idx, ax in enumerate(axs):
-        ax.set_title(metrics[idx], fontsize=13, weight="bold")
+        ax.set_title(metrics[idx], fontsize=13, weight='bold')
         ax.set_ylabel(metrics[idx])
-        # plot each window with a shade or linestyle
-        for p, ls in zip(periods, linestyles):
+        # plot each window with its color
+        for p, color in zip(periods, colors):
             y = moments[p][idx]
             ax.plot(
                 y.index,
                 y.values,
-                linestyle=ls,
-                color=colors[idx],
+                color=color,
                 linewidth=1,
                 label=f"com={p}" if ewm else f"win={p}"
             )
-            # lightly shade the area for each window
-            ax.fill_between(
-                y.index,
-                y.values,
-                alpha=0.1,
-                color=colors[idx]
-            )
-        ax.grid(True, linestyle="--", alpha=0.4)
+            ax.fill_between(y.index, y.values, alpha=0.1, color=color)
+        ax.grid(True, linestyle='--', alpha=0.4)
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
         if idx == 0:
-            if ewm:
-                ax.legend(title="COM", fontsize=9, loc="upper left")
-            else:
-                ax.legend(title="Window", fontsize=9, loc="upper left")
-    # shared x-label and supertitle
+            legend_title = 'COM' if ewm else 'Window'
+            ax.legend(title=legend_title, fontsize=9, loc='upper left')
+    # shared x-label and layout
     for ax in axs[2:]:
-        ax.set_xlabel("Index")
-    fig.suptitle("Rolling Moments", fontsize=16, weight="bold")
-    rect_vals = [0, 0.03, 1, 0.95]
-    fig.tight_layout(rect=tuple(rect_vals))
-    return fig, axs
+        ax.set_xlabel('Index')
+    fig.suptitle('Rolling Moments', fontsize=16, weight='bold')
+    fig.tight_layout(rect=(0, 0.03, 1, 0.95))

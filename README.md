@@ -1,26 +1,25 @@
-# Vulcan – Research Tools
+# Vulcan
 
 “Strike the iron while it’s hot”
 
-⸻
+## About this repo...
+Personal repo for reusable python research utilities.
+Includes tools for data visualization, simulation, statistical analysis and ML.
 
-About this Repository
+Python ≥ 3.12 is required.
 
-Vulcan is a personal forge of reusable research utilities – Python
-modules, notebooks and CLI helpers that I (and, hopefully, you) can drop
-into quantitative projects with zero friction.
+## Clone the forge
+`git clone https://github.com/marcozoffoli/vulcan.git`
 
-Quick Start
+`cd vulcan`
 
-## clone the forge
-git clone https://github.com/your-org/vulcan.git
-cd vulcan
-
-## create a virtual environment (optional)
+## Create a virtual environment (optional)
 python -m venv .venv
 source .venv/bin/activate
 
-## install editable + extras
-pip install -e .[all]
+- With venv: `python -m venv .venv`
+- With uv: `uv run main.py`
 
-Python ≥ 3.10 is required.
+## Install as a package
+- With pip: `pip install -e "/users/mzoffoli/src/vulcan"`
+- With uv: `uv pip install -e "/users/mzoffoli/src/vulcan"`
