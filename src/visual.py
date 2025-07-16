@@ -2,44 +2,50 @@
 Visualization tools
 """
 
-from typing import Literal, Optional, Tuple
-from matplotlib.figure import Figure
-from scipy import signal
-from scipy.stats import gaussian_kde, norm, skew, kurtosis
-from scipy.cluster.hierarchy import linkage, leaves_list
-from sklearn.linear_model import LinearRegression
-from statsmodels.tsa.stattools import grangercausalitytests
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.nonparametric.smoothers_lowess import lowess
-from matplotlib.axes import Axes
-from matplotlib.patches import Rectangle
-import seaborn as sns
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from typing import Literal, Optional, Tuple
+from scipy.stats import gaussian_kde, norm, skew, kurtosis
+from statsmodels.nonparametric.smoothers_lowess import lowess
+from matplotlib.axes import Axes
 
 
 # ===================================================================== #
 # Histogram
 # ===================================================================== #
 
-def plot_distribution(series, bins=30, figsize=(10, 6)):
+def plot_distribution(
+    series, 
+    n_bins: int = 30, 
+    figsize: Tuple[int, int] = (10, 6),
+    title: str | None = None
+) -> None:
     """
     Plot a detailed distribution histogram with KDE and normal comparison.
-
-    Marks mean, median, ±1σ, ±2σ, 5th and 95th percentiles.
-    Annotates skewness and kurtosis.
+    Marks mean, median, ±1σ, ±2σ, , skew, kurtosis, 5th and 95th percentiles.
+    :param series: pd.Series
+        Series of datapoints I want to plot the distribution of
+    :param n_bins: int
+        Number of bins for the histogram plot
+    :param figsize: Tuple[int, int]
+        Figsize
+    :param title: str
+        Title on top of the chart
     """
+    # Getting basic metrics
     data = np.asarray(series)
     mu = data.mean()
     med = np.median(data)
     sigma = data.std(ddof=1)
     # Percentiles
     p5, p95 = np.percentile(data, [5, 95])
+    # Plot style
+    plt.style.use('fivethirtyeight')
     # Histogram and density
     fig, ax = plt.subplots(figsize=figsize)
     counts, bins, patches = ax.hist(
-        data, bins=bins, density=True, color='lightgray', edgecolor='black'
+        data, bins=n_bins, density=True, color='lightgray', edgecolor='black'
     )
     # KDE
     kde = gaussian_kde(data)
@@ -65,7 +71,7 @@ def plot_distribution(series, bins=30, figsize=(10, 6)):
         '+2σ': ('magenta', '-.'),
         '-2σ': ('magenta', '-.'),
         '5th pct': ('cyan', '--'),
-        '95th pct': ('cyan', '--')
+        '95th pct': ('cyan', '--'),
     }
     for label, xpos in vlines.items():
         color, ls = style_map[label]
@@ -74,26 +80,42 @@ def plot_distribution(series, bins=30, figsize=(10, 6)):
             linewidth=1.5, label=label
         )
     # Text box with skewness and kurtosis
-    stats_text = (
-        f"Median: {med:.3f}\n"
-        f"Mean: {mu:.3f}\n"
-        f"Std Dev: {sigma:.3f}\n"
-        f"Skewness: {skew(data):.3f}\n"
-        f"Kurtosis: {kurtosis(data, fisher=False):.3f}"
-    )
+    labels = [
+        "Median", "Mean", "Std Dev",
+        "Skewness", "Kurtosis", "Min", "Max"
+    ]
+    values = [
+        med, mu, sigma,
+        skew(data), kurtosis(data, fisher=False),
+        data.min(), data.max()
+    ]
+    # make a single text blob with each label left-padded to the same width
+    label_width = max(len(lbl) for lbl in labels)
+    value_width = max(len(f"{val:,.3f}") for val in values)
+    stats_lines = [
+        f"{lbl:<{label_width}}{val:>{value_width}.3f}"
+        for lbl, val in zip(labels, values)
+    ]
+    stats_text = "\n".join(stats_lines)
     ax.text(
-        0.97, 0.95, stats_text, transform=ax.transAxes,
-        verticalalignment='top', 
-        horizontalalignment='right',
+        0.97, 0.95, stats_text,
+        transform=ax.transAxes,
+        fontfamily="Monaspace Argon",
+        fontdict={'fontsize':12},
+        verticalalignment="top",
+        horizontalalignment="right",
         bbox=dict(
-            boxstyle='round,pad=0.3', 
-            facecolor='white',
-            edgecolor='gray'
+            boxstyle="round,pad=0.3",
+            facecolor="white",
+            edgecolor="gray"
         )
     )
     # Legend and labels
+    if title is not None:
+        ax.set_title(title)
+    else:
+        ax.set_title('Distribution Plot')
     ax.legend(loc='upper left', fontsize='small')
-    ax.set_title('Distribution')
     ax.set_xlabel('Value')
     ax.set_ylabel('Density')
     plt.tight_layout()
@@ -113,8 +135,7 @@ def scatter_plot(
     fit_line: Literal[
         'none', 'ols', 'through_origin', 'loess', 'all'
     ] = 'ols',
-    loess_frac: float = 0.3,
-    ax: Optional[Axes] = None
+    loess_frac: float = 0.3
 ) -> Axes:
     """
     Scatter two series with density visualization and fit lines.
@@ -122,19 +143,24 @@ def scatter_plot(
         Series for x-axis.
     :param y: pd.Series
         Series for y-axis.
-    :param kind: 'scatter', 'hex', or 'density' via KDE coloring.
-    :param bins: Number of bins or grid size.
-    :param cmap: Colormap for density/hex.
+    :param kind: str
+        'scatter', 'hex', or 'density' via KDE coloring.
+    :param bins: int
+        Number of bins or grid size.
+    :param cmap: str
+        Colormap for density/hex.
     :param fit_line: str
-        Which fit to draw ('none','ols','through_origin','loess','all').
-    :param loess_frac: Fraction for LOESS smoothing.
-    :param ax: Axes to plot into.
+        Which fit to draw ('none', 'ols', 'through_origin', 'loess', 'all').
+    :param loess_frac: float
+        Fraction for LOESS smoothing.
     :returns: Matplotlib Axes.
     """
+    # Converting to arrays
     x_vals = x.to_numpy()
     y_vals = y.to_numpy()
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 8))
+    # Creating subplots
+    plt.style.use('fivethirtyeight')
+    fig, ax = plt.subplots(figsize=(10, 8))
     if kind == 'hex':
         hb = ax.hexbin(
             x_vals, y_vals, gridsize=bins, cmap=cmap, mincnt=1

@@ -2,6 +2,11 @@
 Time series analysis tools
 """
 
+import math
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 from typing import Literal, Optional, Tuple, Sequence, Iterable, Dict, List
 from scipy import signal
 from scipy.stats import norm
@@ -13,11 +18,6 @@ from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 from matplotlib.figure import Figure
 from pprint import pprint
-import seaborn as sns
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import math
 
 
 # ===================================================================== #
@@ -85,6 +85,7 @@ def correlation_heatmap(
         if mask is not None:
             mask = mask[order][:, order]
     # Plot heatmap
+    plt.style.use('fivethirtyeight')
     fig, ax = plt.subplots(figsize=figsize)
     cmap = plt.get_cmap("RdBu_r")
     im = ax.imshow(mat, cmap=cmap, vmin=-1, vmax=1)
@@ -92,6 +93,7 @@ def correlation_heatmap(
     ax.set_yticks(np.arange(n))
     ax.set_xticklabels(cols, rotation=90, fontsize=8)
     ax.set_yticklabels(cols, fontsize=8)
+    ax.grid(False)
     # Grey out masked cells
     if mask is not None:
         # overlay grey rectangles
@@ -234,6 +236,7 @@ def lead_lag_analysis(
         if ax is None:
             _, ax = plt.subplots(figsize=(8, 4))
         # Bar chart
+        plt.style.use('fivethirtyeight')
         ax.bar(df.index, df["corr"], width=0.8, alpha=0.7)
         ax.axhline(0, linewidth=0.8, linestyle="--")
         ax.bar(
@@ -581,11 +584,11 @@ def harmonic_decomposition(
 ) -> pd.DataFrame:
     """
     Decompose a time series into trend, harmonic seasonality, and residual.
-    :param ts : pd.Series
+    :param ts: pd.Series
         Input series; must have a DateTimeIndex or PeriodIndex.
-    :param period : int
+    :param period: int
         Length of one seasonal cycle (e.g. 365 for daily annual).
-    :param harmonics : int
+    :param harmonics: int
         Number of sine–cosine pairs to include (order of expansion).
     :return: pd.DataFrame
         DataFrame with columns ['original', 'trend', 'seasonal', 'residual']

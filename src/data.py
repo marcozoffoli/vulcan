@@ -2,10 +2,10 @@
 Data handling tools
 """
 
-from typing import Union, Dict
-from pathlib import Path
 import pandas as pd
 import numpy as np
+from typing import Union, Dict
+from pathlib import Path
 
 
 # ===================================================================== #
@@ -28,10 +28,15 @@ def summary_df(obj) -> pd.DataFrame:
     # Getting shape
     n_rows = df.shape[0]
     res = []
+    # Declaring stats
+    stats = ['mean', 'std', 'min', '25%', '50%', '75%', 'max']
     # Getting dtypes
     for col in df.columns:
         ser = df[col]
-        is_num = pd.api.types.is_numeric_dtype(ser)
+        is_num = (
+            pd.api.types.is_numeric_dtype(ser) 
+            and not pd.api.types.is_bool_dtype(ser)
+        )
         # basic counts
         n_missing = ser.isna().sum()
         n_inf = np.isinf(ser).sum()
@@ -47,23 +52,18 @@ def summary_df(obj) -> pd.DataFrame:
             'n_inf': int(n_inf),
             'pct_inf': str(round(pct_inf, 2)) + '%',
             'n_unique': int(n_unique),
-            'memory_usage': mem,
+            'memory_usage': str(int(mem / 1000)) + ' KB',
         }
         # numeric stats
         if is_num:
             desc = ser.replace([np.inf, -np.inf], np.nan).describe()
-            row.update({
-                'mean': desc['mean'],
-                'std': desc['std'],
-                'min': desc['min'],
-                '25%': desc['25%'],
-                '50%': desc['50%'],
-                '75%': desc['75%'],
-                'max': desc['max'],
-            })
+            row.update({s: desc.get(s, np.nan) for s in stats})
+            # additional moments
+            row["variance"] = desc.var()
+            row["skew"] = desc.skew()
+            row["kurtosis"] = desc.kurtosis()
         res.append(row)
     summary = pd.DataFrame(res, index=df.columns)
-    stats = ['mean', 'std', 'min', '25%', '50%', '75%', 'max']
     present = [c for c in stats if c in summary.columns]
     summary[present] = summary[present].round(2)
     # add shape for DataFrame (once)
@@ -143,3 +143,73 @@ def load_dict_from_parquet(folder: str | Path) -> Dict[str, pd.DataFrame]:
         p.stem: pd.read_parquet(p)
         for p in folder.glob("*.parquet")
     }
+
+
+
+
+
+
+
+# def summary_df(obj: pd.DataFrame | pd.Series) -> pd.DataFrame:
+#     """
+#     Build a compact summary of a DataFrame/Series.
+
+#     Parameters
+#     ----------
+#     obj : pd.DataFrame or pd.Series
+#         Object to summarise.
+
+#     Returns
+#     -------
+#     pd.DataFrame
+#         One row per column (or a single row for a Series) with
+#         dtype, missing/inf counts, uniques, memory usage (bytes),
+#         numeric statistics including variance, skew, and kurtosis.
+#     """
+#     df = obj.to_frame() if isinstance(obj, pd.Series) else obj.copy()
+#     n_rows = len(df)
+#     rows: list[dict[str, object]] = []
+
+#     for col in df.columns:
+#         ser = df[col]
+#         is_num = (pd.api.types.is_numeric_dtype(ser) and
+#                   not pd.api.types.is_bool_dtype(ser))
+
+#         n_missing = ser.isna().sum()
+#         n_inf = np.isinf(ser).sum() if is_num else 0
+#         n_unique = ser.nunique(dropna=False)
+
+#         row = {
+#             "dtype": ser.dtype,
+#             "n_missing": int(n_missing),
+#             "pct_missing": f"{n_missing / n_rows * 100:.2f}%",
+#             "n_inf": int(n_inf),
+#             "pct_inf": f"{n_inf / n_rows * 100:.2f}%",
+#             "n_unique": int(n_unique),
+#             "memory_usage": ser.memory_usage(deep=True),
+#         }
+
+#         if is_num:
+#             clean = ser.replace([np.inf, -np.inf], np.nan).astype(
+#                 "float64", copy=False
+#             )
+#             desc = clean.describe()
+#             for stat in ("mean", "std", "min", "25%", "50%",
+#                          "75%", "max"):
+#                 row[stat] = desc.get(stat, np.nan)
+#             # additional moments
+#             row["variance"] = clean.var()
+#             row["skew"] = clean.skew()
+#             row["kurtosis"] = clean.kurtosis()
+
+#         rows.append(row)
+
+#     summary = pd.DataFrame(rows, index=df.columns)
+
+#     # round numeric columns for readability
+#     num_cols = summary.select_dtypes("number").columns
+#     summary[num_cols] = summary[num_cols].round(2)
+
+#     summary.attrs["shape"] = df.shape if isinstance(obj, pd.DataFrame) \
+#                              else (n_rows,)
+#     return summary
