@@ -41,7 +41,7 @@ def plot_distribution(
     # Percentiles
     p5, p95 = np.percentile(data, [5, 95])
     # Plot style
-    plt.style.use('fivethirtyeight')
+    plt.style.use('bmh')
     # Histogram and density
     fig, ax = plt.subplots(figsize=figsize)
     counts, bins, patches = ax.hist(
@@ -136,7 +136,7 @@ def scatter_plot(
         'none', 'ols', 'through_origin', 'loess', 'all'
     ] = 'ols',
     loess_frac: float = 0.3
-) -> Axes:
+) -> None:
     """
     Scatter two series with density visualization and fit lines.
     :param x: pd.Series
@@ -153,13 +153,12 @@ def scatter_plot(
         Which fit to draw ('none', 'ols', 'through_origin', 'loess', 'all').
     :param loess_frac: float
         Fraction for LOESS smoothing.
-    :returns: Matplotlib Axes.
     """
     # Converting to arrays
     x_vals = x.to_numpy()
     y_vals = y.to_numpy()
     # Creating subplots
-    plt.style.use('fivethirtyeight')
+    plt.style.use('bmh')
     fig, ax = plt.subplots(figsize=(10, 8))
     if kind == 'hex':
         hb = ax.hexbin(
@@ -201,4 +200,4 @@ def scatter_plot(
     ax.set_ylabel(ylabel)
     ax.set_title(f"Scatter of '{ylabel}' against '{xlabel}'")
     plt.tight_layout()
-    return ax
+    plt.show()

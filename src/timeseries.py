@@ -32,7 +32,7 @@ def correlation_heatmap(
     mask_limits: Optional[Tuple[float, float]] = None,
     cluster: bool = False,
     figsize: Tuple[int, int] = (10, 8)
-) -> Axes:
+) -> None:
     """
     Plot a correlation heatmap with optional EWMA, masking, and clustering.
     :param df: pd.DataFrame
@@ -85,7 +85,7 @@ def correlation_heatmap(
         if mask is not None:
             mask = mask[order][:, order]
     # Plot heatmap
-    plt.style.use('fivethirtyeight')
+    plt.style.use('bmh')
     fig, ax = plt.subplots(figsize=figsize)
     cmap = plt.get_cmap("RdBu_r")
     im = ax.imshow(mat, cmap=cmap, vmin=-1, vmax=1)
@@ -114,7 +114,6 @@ def correlation_heatmap(
         im, ax=ax, fraction=0.046, pad=0.04, label="Correlation")
     ax.set_title("Correlation Heatmap", fontsize=12)
     fig.tight_layout()
-    return ax
 
 
 def lead_lag_analysis(
@@ -218,7 +217,7 @@ def lead_lag_analysis(
         x_name: Optional[str],
         y_name: Optional[str],
         ax: Optional[Axes]
-    ) -> Axes:
+    ) -> None:
         """
         Plot lag-correlation bar chart with highlighted peak.
         :param df: pd.DataFrame
@@ -236,7 +235,7 @@ def lead_lag_analysis(
         if ax is None:
             _, ax = plt.subplots(figsize=(8, 4))
         # Bar chart
-        plt.style.use('fivethirtyeight')
+        plt.style.use('bmh')
         ax.bar(df.index, df["corr"], width=0.8, alpha=0.7)
         ax.axhline(0, linewidth=0.8, linestyle="--")
         ax.bar(
@@ -256,12 +255,11 @@ def lead_lag_analysis(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.margins(x=0.02)
-        return ax
     # Plotting if necessary
     if plot:
         x_name = x.name if isinstance(x.name, str) else None
         y_name = y.name if isinstance(y.name, str) else None
-        ax = _plot(df, best, x_name, y_name, ax)
+        _plot(df, best, x_name, y_name, ax)
     return df
 
 
@@ -272,7 +270,7 @@ def plot_acf_pacf(
     title: Optional[str] = None,
     acf_kwargs: Optional[dict] = None,
     pacf_kwargs: Optional[dict] = None,
-) -> Tuple[Axes, Axes]:
+) -> None:
     """
     Plot ACF and PACF of a time series in a two-panel chart.
     :param series: pd.Series
@@ -292,7 +290,7 @@ def plot_acf_pacf(
     acf_kwargs = acf_kwargs or {}
     pacf_kwargs = pacf_kwargs or {}
     # Set a clean aesthetic
-    sns.set_style("darkgrid")
+    plt.style.use('bmh')
     # plt.style.use("whitegrid")
     fig, (ax_acf, ax_pacf) = plt.subplots(
         1, 2, figsize=figsize, constrained_layout=True
@@ -326,7 +324,6 @@ def plot_acf_pacf(
     )
     ax_pacf.set_xlabel("Lag")
     ax_pacf.set_ylabel("Partial Corr")
-    return ax_acf, ax_pacf
 
 
 # ===================================================================== #

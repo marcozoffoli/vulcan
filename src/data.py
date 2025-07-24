@@ -37,12 +37,12 @@ def summary_df(obj) -> pd.DataFrame:
             pd.api.types.is_numeric_dtype(ser) 
             and not pd.api.types.is_bool_dtype(ser)
         )
-        # basic counts
+        # Basic counts
         n_missing = ser.isna().sum()
-        n_inf = np.isinf(ser).sum()
+        n_inf = np.isinf(ser).sum() if is_num else 0
         n_unique = ser.nunique(dropna=False)
         mem = ser.memory_usage(deep=True)
-        # percentages
+        # Percentages
         pct_missing = n_missing / n_rows * 100
         pct_inf = n_inf / n_rows * 100
         row = {
@@ -54,19 +54,20 @@ def summary_df(obj) -> pd.DataFrame:
             'n_unique': int(n_unique),
             'memory_usage': str(int(mem / 1000)) + ' KB',
         }
-        # numeric stats
+        # Numeric stats
         if is_num:
-            desc = ser.replace([np.inf, -np.inf], np.nan).describe()
+            clean = ser.replace([np.inf, -np.inf], np.nan)
+            desc = clean.describe()
             row.update({s: desc.get(s, np.nan) for s in stats})
-            # additional moments
-            row["variance"] = desc.var()
-            row["skew"] = desc.skew()
-            row["kurtosis"] = desc.kurtosis()
+            # Additional moments
+            row["variance"] = clean.var()
+            row["skew"] = clean.skew()
+            row["kurtosis"] = clean.kurtosis()
         res.append(row)
     summary = pd.DataFrame(res, index=df.columns)
     present = [c for c in stats if c in summary.columns]
     summary[present] = summary[present].round(2)
-    # add shape for DataFrame (once)
+    # Add shape for DataFrame (once)
     if isinstance(obj, pd.DataFrame):
         summary.attrs['shape'] = df.shape
     else:
