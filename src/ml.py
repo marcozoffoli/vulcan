@@ -9,7 +9,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Tuple, Dict, Any, Sequence
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.inspection import permutation_importance
@@ -141,7 +140,7 @@ def train_xgb_rf(
 
 
 # ===================================================================== #
-# Feature Imprtance
+# Feature Importance
 # ===================================================================== #
 
 def plot_feature_importance(
